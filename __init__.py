@@ -98,8 +98,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     yaml_config = await _load_yaml_config(hass)
     entities_config = yaml_config.get(CONF_ENTITIES, [])
     
-    # Create and setup hub
-    hub = BeckhoffADSHub(hass, host, port, ams_net_id, entities_config)
+    # Create and setup hub with options
+    hub = BeckhoffADSHub(
+        hass, host, port, ams_net_id, entities_config, entry.options
+    )
     
     try:
         await hub.async_setup()
@@ -109,8 +111,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     hass.data[DOMAIN][entry.entry_id] = hub
     
+    # Create and setup coordinator
+    from .coordinator import BeckhoffADSCoordinator
+    
+    coordinator = BeckhoffADSCoordinator(
+        hass,
+        hub,
+        entities_config,
+        entry.options.get("scan_interval", 5),
+    )
+    
+    # Setup notifications if enabled
+    if entry.options.get("use_notifications", True):
+        await coordinator.async_setup_notifications()
+    
+    # Store coordinator
+    hass.data[DOMAIN][f"{entry.entry_id}_coordinator"] = coordinator
+    
+    # Initial data fetch
+    await coordinator.async_config_entry_first_refresh()
+    
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    
+    # Setup update listener for options changes
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     
     return True
 
@@ -120,10 +145,22 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     
     if unload_ok:
+        # Shutdown coordinator
+        coordinator = hass.data[DOMAIN].pop(f"{entry.entry_id}_coordinator", None)
+        if coordinator:
+            await coordinator.async_shutdown()
+        
+        # Close hub
         hub: BeckhoffADSHub = hass.data[DOMAIN].pop(entry.entry_id)
         await hub.async_close()
     
     return unload_ok
+
+
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload config entry when options change."""
+    await async_unload_entry(hass, entry)
+    await async_setup_entry(hass, entry)
 
 
 async def _load_yaml_config(hass: HomeAssistant) -> dict[str, Any]:

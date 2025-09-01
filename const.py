@@ -29,23 +29,19 @@ RECONNECT_BACKOFF_FACTOR = 2
 # YAML configuration file name
 YAML_CONFIG_FILE = "beckhoff_ads.yaml"
 
-# Supported PLC data types for sensors
-SENSOR_DATA_TYPES = {
-    "BOOL": "pyads.PLCTYPE_BOOL",
-    "BYTE": "pyads.PLCTYPE_BYTE", 
-    "SINT": "pyads.PLCTYPE_SINT",
-    "USINT": "pyads.PLCTYPE_USINT",
-    "INT": "pyads.PLCTYPE_INT",
-    "UINT": "pyads.PLCTYPE_UINT", 
-    "WORD": "pyads.PLCTYPE_WORD",
-    "DINT": "pyads.PLCTYPE_DINT",
-    "UDINT": "pyads.PLCTYPE_UDINT",
-    "DWORD": "pyads.PLCTYPE_DWORD",
-    "REAL": "pyads.PLCTYPE_REAL",
-    "LREAL": "pyads.PLCTYPE_LREAL",
-    "STRING": "pyads.PLCTYPE_STRING",
-    "TIME": "pyads.PLCTYPE_TIME",
-    "DATE": "pyads.PLCTYPE_DATE", 
-    "DT": "pyads.PLCTYPE_DT",
-    "TOD": "pyads.PLCTYPE_TOD"
-}
+# Supported PLC data types
+SUPPORTED_PLC_TYPES = [
+    "BOOL", "BYTE", "SINT", "USINT", "INT", "UINT", 
+    "WORD", "DINT", "UDINT", "DWORD", "REAL", "LREAL",
+    "STRING", "TIME", "DATE", "DT", "TOD"
+]
+
+# Entity categories for Home Assistant
+ENTITY_CATEGORY_CONFIG = "config"
+ENTITY_CATEGORY_DIAGNOSTIC = "diagnostic"
+
+# Options defaults
+DEFAULT_SCAN_INTERVAL = 5
+DEFAULT_USE_NOTIFICATIONS = True
+DEFAULT_OPERATION_TIMEOUT = 5.0
+DEFAULT_MAX_FAILURES = 3

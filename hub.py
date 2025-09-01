@@ -8,17 +8,20 @@ import struct
 import threading
 from collections import namedtuple
 from datetime import timedelta
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import pyads
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
+    DEFAULT_MAX_FAILURES,
+    DEFAULT_OPERATION_TIMEOUT,
     RECONNECT_BACKOFF_FACTOR,
     RECONNECT_INITIAL_DELAY,
     RECONNECT_MAX_DELAY,
 )
+from .helpers import CircuitBreaker, format_plc_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +41,7 @@ class BeckhoffADSHub:
         port: int,
         ams_net_id: str,
         entities_config: list[dict[str, Any]],
+        options: Optional[dict[str, Any]] = None,
     ) -> None:
         """Initialize the hub."""
         self.hass = hass
@@ -45,6 +49,7 @@ class BeckhoffADSHub:
         self.port = port
         self.ams_net_id = ams_net_id
         self.entities_config = entities_config
+        self.options = options or {}
         
         self._plc: pyads.Connection | None = None
         self._connected = False
@@ -55,16 +60,26 @@ class BeckhoffADSHub:
         # Use threading lock like the original integration
         self._lock = threading.Lock()
         self._connection_failures = 0
-        self._max_failures_before_reconnect = 3
+        self._max_failures_before_reconnect = self.options.get(
+            "max_connection_failures", DEFAULT_MAX_FAILURES
+        )
         
         # Notification system
         self._notification_items = {}
-        self._notification_enabled = True
+        self._notification_enabled = self.options.get("use_notifications", True)
         
         # Timeout and recovery settings
-        self._operation_timeout = 5.0  # seconds for read/write operations
+        self._operation_timeout = self.options.get(
+            "operation_timeout", DEFAULT_OPERATION_TIMEOUT
+        )
         self._consecutive_timeouts = 0
         self._max_consecutive_timeouts = 5
+        
+        # Circuit breaker for connection management
+        self._circuit_breaker = CircuitBreaker(
+            failure_threshold=self._max_failures_before_reconnect,
+            recovery_timeout=self.options.get("reconnect_max_delay", RECONNECT_MAX_DELAY),
+        )
 
     async def async_setup(self) -> None:
         """Set up the hub."""
@@ -365,6 +380,7 @@ class BeckhoffADSHub:
     def is_healthy(self) -> bool:
         """Return if the connection is healthy (low failure rate)."""
         return (self._connected and 
+                self._circuit_breaker.is_healthy and
                 self._connection_failures < self._max_failures_before_reconnect and
                 self._consecutive_timeouts < self._max_consecutive_timeouts)
 
@@ -385,6 +401,10 @@ class BeckhoffADSHub:
         """Read value from PLC using threading lock with timeout handling."""
         if not self._connected or not self._plc:
             raise Exception("PLC not connected")
+        
+        # Check circuit breaker
+        if not self._circuit_breaker.can_execute():
+            raise Exception(f"Circuit breaker open - too many failures")
         
         def read_value():
             """Synchronous read with lock and timeout handling."""
@@ -414,14 +434,20 @@ class BeckhoffADSHub:
             # Reset counters on successful read
             self._connection_failures = 0
             self._consecutive_timeouts = 0
+            self._circuit_breaker.call_succeeded()
             return value
             
         except asyncio.TimeoutError:
             self._consecutive_timeouts += 1
             self._connection_failures += 1
-            _LOGGER.warning("Read timeout for %s (timeout %d/%d, failure %d/%d)", 
-                          address, self._consecutive_timeouts, self._max_consecutive_timeouts,
-                          self._connection_failures, self._max_failures_before_reconnect)
+            self._circuit_breaker.call_failed()
+            
+            error_msg = format_plc_error(
+                TimeoutError(f"Operation timeout ({self._operation_timeout}s)"),
+                address
+            )
+            _LOGGER.warning("%s (timeout %d/%d)", 
+                          error_msg, self._consecutive_timeouts, self._max_consecutive_timeouts)
             
             # Force reconnection after too many consecutive timeouts
             if self._consecutive_timeouts >= self._max_consecutive_timeouts:
@@ -429,33 +455,39 @@ class BeckhoffADSHub:
                 self._connected = False
                 await self._async_disconnect()
             
-            raise Exception(f"Timeout reading {address}")
+            raise Exception(error_msg)
             
         except TimeoutError as err:
             self._consecutive_timeouts += 1
             self._connection_failures += 1
-            _LOGGER.warning("ADS timeout for %s: %s (timeout %d/%d)", 
-                          address, err, self._consecutive_timeouts, self._max_consecutive_timeouts)
+            self._circuit_breaker.call_failed()
+            
+            error_msg = format_plc_error(err, address)
+            _LOGGER.warning("%s (timeout %d/%d)", 
+                          error_msg, self._consecutive_timeouts, self._max_consecutive_timeouts)
             
             if self._consecutive_timeouts >= self._max_consecutive_timeouts:
                 _LOGGER.error("Too many consecutive timeouts, forcing reconnection")
                 self._connected = False
                 await self._async_disconnect()
             
-            raise
+            raise Exception(error_msg)
             
         except Exception as err:
             # Increment failure count but don't immediately disconnect
             self._connection_failures += 1
-            _LOGGER.debug("Failed to read %s (failure %d/%d): %s", 
-                         address, self._connection_failures, 
-                         self._max_failures_before_reconnect, err)
+            self._circuit_breaker.call_failed()
+            
+            error_msg = format_plc_error(err, address)
+            _LOGGER.debug("%s (failure %d/%d)", 
+                         error_msg, self._connection_failures, 
+                         self._max_failures_before_reconnect)
             
             # Only trigger reconnection after multiple failures
             if self._connection_failures >= self._max_failures_before_reconnect:
                 _LOGGER.warning("Multiple read failures, will test connection")
             
-            raise
+            raise Exception(error_msg)
 
     async def async_write_value(self, address: str, value: Any, plc_type: type = None):
         """Write value to PLC using threading lock with timeout handling."""

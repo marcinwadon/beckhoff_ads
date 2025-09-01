@@ -6,11 +6,17 @@ A Home Assistant custom integration for connecting to Beckhoff TwinCAT PLCs usin
 
 - **Real-time monitoring** with ADS notifications for instant updates
 - **Multiple entity types**: sensors, binary sensors, switches, number inputs, and select dropdowns
-- **Automatic reconnection** with exponential backoff when PLC connection is lost
+- **Automatic reconnection** with exponential backoff and circuit breaker pattern
 - **YAML-based configuration** for easy entity management
 - **Value scaling and formatting** for sensors (factor, offset, precision)
 - **Comprehensive error handling** with timeout management
 - **Live YAML reload** without restarting Home Assistant
+- **DataUpdateCoordinator** for efficient, centralized data fetching
+- **Options flow** to modify settings without reconfiguration
+- **Diagnostics support** for troubleshooting
+- **Entity categories** (config, diagnostic) for better organization
+- **Long-term statistics** support for numeric sensors
+- **Circuit breaker pattern** to prevent connection storms
 
 ## Prerequisites
 
@@ -100,6 +106,16 @@ beckhoff_ads:
         - "Maintenance"
 ```
 
+### Integration Options
+
+After initial setup, you can modify these options via the integration's "Configure" button:
+
+- **Scan Interval**: Default update frequency (1-300 seconds)
+- **Use Notifications**: Enable/disable real-time ADS notifications
+- **Operation Timeout**: Timeout for PLC operations (1-30 seconds)
+- **Reconnect Max Delay**: Maximum delay between reconnection attempts (10-300 seconds)
+- **Max Connection Failures**: Number of failures before triggering reconnection (1-10)
+
 ### Configuration Options
 
 #### Required Fields
@@ -114,6 +130,8 @@ beckhoff_ads:
 - `unit_of_measurement`: Unit for display
 - `device_class`: Home Assistant device class
 - `icon`: Custom icon (e.g., "mdi:thermometer")
+- `entity_category`: Entity category ("config" or "diagnostic")
+- `state_class`: State class for sensors ("measurement", "total_increasing", "total")
 
 #### Sensor-Specific Options
 - `factor`: Scaling factor (default: 1.0)
@@ -254,6 +272,25 @@ logger:
 ## Contributing
 
 Issues and pull requests are welcome at: https://github.com/marcinwadon/beckhoff_ads
+
+## Changelog
+
+### Version 2.0.0
+- Added DataUpdateCoordinator for efficient data fetching
+- Implemented options flow for runtime configuration changes
+- Added diagnostics platform for troubleshooting
+- Introduced circuit breaker pattern for connection management
+- Added entity categories and state classes support
+- Improved error handling and recovery mechanisms
+- Enhanced type hints and code organization
+- Added support for long-term statistics
+
+### Version 1.0.0
+- Initial release
+- Basic entity support (sensor, binary_sensor, switch, number, select)
+- Real-time notifications and polling
+- YAML configuration support
+- Automatic reconnection
 
 ## License
 
