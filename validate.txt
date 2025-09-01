@@ -1,0 +1,33 @@
+## HACS Repository Structure Validation
+
+✅ Repository structure is now HACS-compliant!
+
+### Required Structure:
+- ✅ custom_components/beckhoff_ads/ (integration directory)
+  - ✅ __init__.py
+  - ✅ manifest.json
+  - ✅ All platform files (sensor.py, switch.py, etc.)
+  - ✅ strings.json
+- ✅ README.md (in repository root)
+- ✅ hacs.json (HACS configuration)
+- ✅ info.md (HACS information file)
+- ✅ LICENSE file
+- ✅ .github/workflows/ (CI/CD)
+  - ✅ hacs.yaml (HACS validation)
+  - ✅ hassfest.yaml (HA validation)
+
+### Additional Files:
+- CLAUDE.md (AI assistant guidance)
+- .gitignore (Git configuration)
+
+### To use with HACS:
+1. Push these changes to your GitHub repository
+2. In Home Assistant, go to HACS
+3. Click menu (3 dots) → Custom repositories
+4. Add: https://github.com/marcinwadon/beckhoff_ads
+5. Category: Integration
+6. Click Add
+7. Search for "Beckhoff ADS" and install
+
+The integration will be installed in:
+config/custom_components/beckhoff_ads/

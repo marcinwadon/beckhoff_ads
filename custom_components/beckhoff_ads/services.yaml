@@ -1,0 +1,20 @@
+reload_yaml:
+  name: Reload YAML Configuration
+  description: Reload entities configuration from YAML file without restarting Home Assistant.
+  fields: {}
+
+force_reconnect:
+  name: Force Reconnect
+  description: Force reconnection to PLC when integration becomes unresponsive.
+  target:
+    integration:
+      integration: beckhoff_ads
+  fields: {}
+
+connection_status:
+  name: Connection Status  
+  description: Log current connection status and health information to the Home Assistant logs.
+  target:
+    integration:
+      integration: beckhoff_ads
+  fields: {}

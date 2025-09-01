@@ -85,6 +85,29 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     
     hass.services.async_register(DOMAIN, "reload_yaml", reload_yaml_config)
     
+    # Register force reconnect service
+    async def force_reconnect_service(call: ServiceCall) -> None:
+        """Force reconnection service."""
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            hub: BeckhoffADSHub = hass.data[DOMAIN][entry.entry_id]
+            await hub.async_force_reconnect()
+    
+    hass.services.async_register(DOMAIN, "force_reconnect", force_reconnect_service)
+    
+    # Register connection status service
+    async def connection_status_service(call: ServiceCall) -> None:
+        """Log connection status service."""
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            hub: BeckhoffADSHub = hass.data[DOMAIN][entry.entry_id]
+            _LOGGER.info(
+                "PLC %s:%s (AMS: %s) - Connected: %s, Healthy: %s, Failures: %d",
+                hub.host, hub.port, hub.ams_net_id,
+                hub.connected, hub.is_healthy,
+                getattr(hub, "_connection_failures", 0)
+            )
+    
+    hass.services.async_register(DOMAIN, "connection_status", connection_status_service)
+    
     return True
 
 

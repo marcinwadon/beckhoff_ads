@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Home Assistant custom integration for Beckhoff ADS (Automation Device Specification) that enables communication with Beckhoff TwinCAT PLCs. The integration provides real-time monitoring and control of PLC variables through Home Assistant entities.
 
+**Important**: The integration code is located in `custom_components/beckhoff_ads/` directory to comply with HACS requirements.
+
 ## Architecture
 
 ### Core Components
