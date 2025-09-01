@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Beckhoff ADS",
+        "description": "Configure connection to Beckhoff PLC",
+        "data": {
+          "host": "Host IP Address",
+          "port": "ADS Port",
+          "ams_net_id": "AMS Net ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to PLC",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "services": {
+    "reload_yaml": {
+      "name": "Reload YAML Configuration",
+      "description": "Reload entities configuration from YAML file"
+    },
+    "force_reconnect": {
+      "name": "Force Reconnect",
+      "description": "Force reconnection to PLC (use when integration becomes unresponsive)"
+    },
+    "connection_status": {
+      "name": "Connection Status",
+      "description": "Log current connection status and health information"
+    }
+  }
+}
